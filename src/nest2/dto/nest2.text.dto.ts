@@ -1,7 +1,22 @@
-import { IsString, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsObject, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 
+enum FileType {
+    AUDIO = 'audio',
+    DOCUMENT = 'document',
+    VIDEO = 'video',
+    VOICE = 'voice',
+    IMAGE = 'image'
+}
+
+class FileItemDto {
+    @IsString()
+    file_type: 'audio' | 'document' | 'video' | 'voice' | 'image';
+
+    @IsString()
+    file_url: string;
+}
 
 export class Textadmin {
 
@@ -18,28 +33,11 @@ export class Textadmin {
     text: string | null
 
     @IsOptional()
-    @IsString()
-    photos: string | null
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => FileItemDto)
+    file: FileItemDto[];
 
-    @IsOptional()
-    @IsString()
-    documents: string | null
-
-    @IsOptional()
-    @IsString()
-    audio: string | null
-
-    @IsOptional()
-    @IsString()
-    voice: string | null
-
-    @IsOptional()
-    @IsString()
-    video: string | null
-
-    @IsOptional()
-    @IsString()
-    caption: string | null
 
     @IsString()
     date: string

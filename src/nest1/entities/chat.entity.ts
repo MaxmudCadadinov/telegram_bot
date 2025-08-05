@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm'
+import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm'
 import { Sender } from "./role.enum"
+import { Files } from './file.entity'
 
 @Entity('chats')
 
@@ -14,6 +15,9 @@ export class Chats {
     })
     sender: Sender
 
+    @Column({ nullable: true, type: "varchar" })
+    media_group_id?: string
+
     @Column()
     admin_id: number
 
@@ -23,23 +27,8 @@ export class Chats {
     @Column({ type: 'text', nullable: true })
     text: string | null;
 
-    @Column({ type: 'varchar', nullable: true })
-    photos: any | null 
-
-    @Column({ type: 'varchar', nullable: true })
-    documents: any | null
-
-    @Column({ type: 'varchar', nullable: true })
-    audio: any | null
-
-    @Column({ type: 'varchar', nullable: true })
-    voice: any | null
-
-    @Column({ type: 'varchar', nullable: true })
-    video: any | null
-
-    @Column({ type: 'varchar', nullable: true })
-    caption: any | null
+    @OneToMany(() => Files, file => file.chat, { cascade: true })
+    files: Files[]
 
     @Column()
     created_at: string;

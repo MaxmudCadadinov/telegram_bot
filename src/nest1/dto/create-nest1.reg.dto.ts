@@ -6,6 +6,12 @@ export class CreateNestRegDto {
     name: string;
 
     @IsString()
+    last_name: string;
+
+    @IsNumber()
+    year: number;
+
+    @IsString()
     phone: string;
 
     @IsNumber()

@@ -7,12 +7,15 @@ import { Chats } from 'src/nest1/entities/chat.entity';
 import { Users } from 'src/nest1/entities/nestUser.entity';
 import { All_chats } from './dto/all_chats.dto';
 import { download_file } from './downloadfiles'
-import { AdminDto } from './dto/add_admin.dto';
+import { AdminDto } from './dto/login_admin.dto';
 import { Role, Sender } from '../nest1/entities/role.enum'
 import { TelegramService } from 'src/telegram/telegram.service';
 import { InputFile } from 'grammy'
 import { JwtService } from '@nestjs/jwt'
-
+import { Files } from 'src/nest1/entities/file.entity';
+import { LastSenderDto } from './dto/last_message.dto';
+import path from 'path';
+import { createReadStream } from "fs";
 
 
 @Injectable()
@@ -27,86 +30,118 @@ export class Nest2Service {
     private jwtService: JwtService) { }
 
 
-  private async checkAndSendMessages(id) {
-    const unsent = await this.chatsRepo.find({ where: { is_sent: false, sender: Sender.FROM_ADMIN, user_id: id } })
+  private async checkAndSendMessages(user_id, admin_id) {
+    const admin_name = await this.userRepo.findOne({ where: { id: admin_id, role: Role.ADMIN } })
+    const unsent = await this.chatsRepo.find({ where: { is_sent: false, sender: Sender.FROM_ADMIN, user_id: user_id }, relations: ['files'] })
+    const user = await this.userRepo.findOne({ where: { id: user_id, role: Role.USER } })
+    //console.log(unsent)
 
-    for (const message of unsent) {
-      const user = await this.userRepo.findOne({ where: { id: message.user_id } })
-      if (!user || !user.telegram_id) continue
+    for (const chat of unsent) {
 
-      const chatId = user.telegram_id
-
-      try {
-        if (message.text) await this.telegramService.bot.api.sendMessage(chatId, message.text)
-        if (message.caption) await this.telegramService.bot.api.sendMessage(chatId, message.caption)
-        if (message.photos) await this.telegramService.bot.api.sendPhoto(chatId, new InputFile(`uploads/${message.photos}`))
-        if (message.documents) await this.telegramService.bot.api.sendDocument(chatId, new InputFile(`uploads/${message.documents}`))
-        if (message.voice) await this.telegramService.bot.api.sendVoice(chatId, new InputFile(`uploads/${message.voice}`))
-        if (message.audio) await this.telegramService.bot.api.sendAudio(chatId, new InputFile(`uploads/${message.audio}`))
-        if (message.video) await this.telegramService.bot.api.sendVideo(chatId, new InputFile(`uploads/${message.video}`))
-
-        message.is_sent = true
-        await this.chatsRepo.save(message)
-      } catch (err) {
-        console.error(`❌ Xatolik: ${err.message}`)
+      if (chat.text) {
+        await this.telegramService.bot.api.sendMessage(user!.telegram_id, chat.text)
       }
-    }
-  }
+      else if (chat.files && chat.files.length > 0) {
+        for (let i of chat.files) {
+          if (i.file_type === 'video') {
+            const uploadsDir = path.join(process.cwd(), 'uploads')
+            const filePath = path.join(uploadsDir, i.file);
 
+            const inputfile = new InputFile(createReadStream(`${filePath}`))
+            this.telegramService.bot.api.sendVideo(user!.telegram_id, inputfile)
+          } else if (i.file_type === 'audio') {
+            const uploadsDir = path.join(process.cwd(), 'uploads')
+            const filePath = path.join(uploadsDir, i.file);
+
+            const inputfile = new InputFile(createReadStream(`${filePath}`))
+            this.telegramService.bot.api.sendAudio(user!.telegram_id, inputfile)
+          } else if (i.file_type === 'voice') {
+            const uploadsDir = path.join(process.cwd(), 'uploads')
+            const filePath = path.join(uploadsDir, i.file);
+
+            const inputfile = new InputFile(createReadStream(`${filePath}`))
+            this.telegramService.bot.api.sendVoice(user!.telegram_id, inputfile)
+          } else if (i.file_type === 'document') {
+            const uploadsDir = path.join(process.cwd(), 'uploads')
+            const filePath = path.join(uploadsDir, i.file);
+
+            const inputfile = new InputFile(createReadStream(`${filePath}`))
+            this.telegramService.bot.api.sendDocument(user!.telegram_id, inputfile)
+          } else if (i.file_type === 'image') {
+            const uploadsDir = path.join(process.cwd(), 'uploads')
+            const filePath = path.join(uploadsDir, i.file);
+
+            const inputfile = new InputFile(createReadStream(`${filePath}`))
+            this.telegramService.bot.api.sendPhoto(user!.telegram_id, inputfile)
+          }
+        }
+      }
+      chat.is_sent = true
+      await this.chatsRepo.save(chat)
+    }
+
+  }
   async text_from_admin(dto: Textadmin) {
     const body = {
-      admin_id: dto.admin_id, user_id: dto.user_id, text: dto.text, photos: dto.photos, documents: dto.documents,
-      audio: dto.audio, voice: dto.voice, video: dto.video, caption: dto.caption, created_at: dto.date
+      admin_id: dto.admin_id, user_id: dto.user_id, text: dto.text, file: dto.file, created_at: dto.date
+    }
+    // console.log(body)
+
+    let files: Partial<Files>[] = []
+    // console.log(files)
+
+    if (body.file && body.file.length) {
+      for (let i of body.file) {
+        const local_name = await download_file(i.file_url)
+        files.push({ 'file': local_name, "file_type": i.file_type })
+      }
     }
     const admin_id = body.admin_id
     const user_id = body.user_id
     const text = body.text ?? null
-    const name_photo = body.photos ? await download_file(body.photos) : null
-    const name_doc = body.documents ? await download_file(body.documents) : null
-    const voice_name = body.voice ? await download_file(body.voice) : null
-    const video_name = body.video ? await download_file(body.video) : null
-    const audio_name = body.audio ? await download_file(body.audio) : null
-    const caption = body.caption ?? null
     const created_at = body.created_at
 
-    const finish_obj = {
-      text: text, admin_id: admin_id, user_id: user_id, photos: name_photo, documents: name_doc, voice: voice_name,
-      video: video_name, audio: audio_name, caption: caption, created_at: created_at
+
+    let finish_obj: any = { text: text, admin_id: admin_id, user_id: user_id, created_at: created_at }
+
+    if (files.length > 0) {
+      finish_obj.files = files
     }
+
     const create = await this.chatsRepo.create(finish_obj)
+    //console.log("create сработал")
     await this.chatsRepo.save(create)
-    await this.checkAndSendMessages(finish_obj.user_id)
+    //console.log('save сработал')
+    await this.checkAndSendMessages(finish_obj.user_id, body.admin_id)
   }
 
   async all_chats(dto: All_chats) {
 
-    const fileBaseUrl = 'https://d13409b2d57d.ngrok-free.app/uploads/';
+    const fileBaseUrl = 'http://localhost:3000/uploads/';
 
     const obj: any[] = []
 
-    const select_chats = await this.chatsRepo.find({ where: { user_id: dto.user_id, admin_id: dto.admin_id } })
-    //console.log(select_chats)
-    for (let i of select_chats) {
-      //console.log(i)
-      const chatobj = {
-        id: i.id,
-        admin_id: i.admin_id,
-        user_id: i.user_id,
-        text: i.text ? i.text : null,
-        photos: i.photos ? fileBaseUrl + i.photos : null,
-        documents: i.documents ? fileBaseUrl + i.documents : null,
-        audio: i.audio ? fileBaseUrl + i.audio : null,
-        voice: i.voice ? fileBaseUrl + i.voice : null,
-        video: i.video ? fileBaseUrl + i.video : null,
-        caption: i.caption ? i.caption : null,
-        created_at: i.created_at,
-        sender: i.sender
-      }
-      obj.push(chatobj)
-    }
+    const select_chats = await this.chatsRepo.find({ where: { user_id: dto.user_id, admin_id: dto.admin_id }, relations: ['files'] })
 
-    //console.log(obj)
-    return obj
+
+    const result = select_chats.map(chat => {
+      return {
+        admin_id: chat.admin_id,
+        user_id: chat.user_id,
+        text: chat.text ?? null,
+        created_at: chat.created_at,
+        sender: chat.sender,
+
+
+        files: chat.files.map(file => ({
+          file: `${fileBaseUrl}${file.file}`,
+          file_type: file.file_type
+        }))
+      };
+    });
+
+
+    return result;
   }
 
   async add_admin(dto: AdminDto) {
@@ -131,8 +166,24 @@ export class Nest2Service {
     return all_users
   }
 
-
-
+  async last_message(dto: LastSenderDto) {
+    const file_url = 'https://efc471461115.ngrok-free.app/uploads/'
+    const last_message = await this.chatsRepo.find({
+      where: { sender: Sender.FROM_USER, is_sent: false, admin_id: dto.admin_id, user_id: dto.user_id },
+      order: { created_at: 'ASC' },
+      relations: ['files'],
+    })
+    for (let i of last_message) {
+      if (i.files && i.files.length > 0) {
+        for (let file of i.files) {
+          file.file = `${file_url}${file.file}`
+        }
+      }
+      //i.is_sent = true
+    }
+    await this.chatsRepo.save(last_message)
+    return last_message
+  }
 
 }
 

@@ -10,6 +10,12 @@ export class Users {
     @Column({ type: 'varchar' })
     user_name: string
 
+    @Column({ type: 'varchar' })
+    user_lastName: string
+
+    @Column({ nullable: true })
+    year: number
+
     @Column({ nullable: true, type: 'varchar' })
     phone: string | null
 
