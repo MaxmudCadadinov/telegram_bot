@@ -5,10 +5,11 @@ import { Chats } from 'src/nest1/entities/chat.entity';
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { Users } from 'src/nest1/entities/nestUser.entity';
 import { Files } from 'src/nest1/entities/file.entity';
+import { AdminChatGateway } from '../websocket/admin-chat.gateway';
 
 @Module({
-  providers: [TelegramService],
-  exports: [TelegramService],
+  providers: [TelegramService, AdminChatGateway],
+  exports: [TelegramService, AdminChatGateway],
   imports: [Nest1Module, TypeOrmModule.forFeature([Chats, Users, Files])]
 })
 export class TelegramModule { }

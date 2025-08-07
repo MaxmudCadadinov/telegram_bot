@@ -13,8 +13,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm'
 import { Users } from 'src/nest1/entities/nestUser.entity';
 import { Role } from '../nest1/entities/role.enum'
-import { text } from 'stream/consumers';
+//import { text } from 'stream/consumers';
 import { Files } from 'src/nest1/entities/file.entity';
+import { AdminChatGateway } from '../websocket/admin-chat.gateway'
 
 
 
@@ -27,7 +28,8 @@ export class TelegramService implements OnModuleInit {
         @InjectRepository(Files)
         private fileRepo: Repository<Files>,
         @InjectRepository(Users)
-        private userRepo: Repository<Users>) { }
+        private userRepo: Repository<Users>,
+        private readonly adminchatgeteway: AdminChatGateway) { }
 
     onModuleInit() {
 
@@ -57,6 +59,9 @@ export class TelegramService implements OnModuleInit {
     }
 
     private async reg(conversation, ctx: MyContext) {
+        const telegram_id = Number(ctx.from?.id)
+        //const existing_user = await this.userRepo.findOne({ where: { telegram_id: telegram_id } })
+
         await ctx.reply("Ro'yhatdan o'tish bosqichini boshladik")
         await ctx.reply("Ismingizni yuboring")
         const { message: msg1 } = await conversation.waitFor("message:text")
@@ -70,9 +75,8 @@ export class TelegramService implements OnModuleInit {
         await ctx.reply('Mavjud telefon raqamingizni yuboring')
         const { message: msg4 } = await conversation.waitFor("message:text")
 
-        const telegram_id = Number(ctx.from?.id)
         const res = { name: msg1.text, last_name: msg2.text, phone: msg4.text, year: Number(msg3.text), telegram_id: telegram_id }
-        console.log(res)
+        //console.log(res)
         try {
             const response = await axios.post('http://localhost:3000/add_user', res, { headers: { "Content-Type": "application/json" } })
             console.log(response)
@@ -93,7 +97,7 @@ export class TelegramService implements OnModuleInit {
 
             const user = response.data.user_id
 
-            const admins = await this.userRepo.find({ where: { role: Role.ADMIN } })
+            //const admins = await this.userRepo.find({ where: { role: Role.ADMIN } })
             const msg = ctx.message
             let files: Partial<Files>[] = []
 
@@ -102,8 +106,6 @@ export class TelegramService implements OnModuleInit {
             } else {
                 files = await msgg(ctx, user)
             }
-
-            //console.log(files)
 
             const now = new Date();
             const formatted = now.toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' });
@@ -142,6 +144,11 @@ export class TelegramService implements OnModuleInit {
                 const create = await this.chatsRepo.create(b)
                 await this.chatsRepo.save(create)
             }
+            this.adminchatgeteway.sendToAdmin({
+                user_id: Number(user),
+                text: body.text,
+                files: body.files ?? []
+            })
 
         } else if (response.data.message === false) { ctx.reply("Ro'yhatdan o'tish bosqichini amalga oshiring", { reply_markup: new_keyboard }) }
     }

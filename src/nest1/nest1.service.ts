@@ -20,10 +20,8 @@ export class Nest1Service {
     if (existing_user) { return { message: false } }
     else {
       const user_to_save = { user_name: dto.name, user_lastName: dto.last_name, year: dto.year, phone: dto.phone, telegram_id: dto.telegram_id, role: Role.USER }
-      console.log('user_to_save', user_to_save)
       const new_user = await this.usersRepo.create(user_to_save)
       await this.usersRepo.save(new_user)
-      console.log('new_user', new_user)
       return { message: true }
     }
   }

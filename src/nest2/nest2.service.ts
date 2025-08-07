@@ -85,16 +85,18 @@ export class Nest2Service {
     const body = {
       admin_id: dto.admin_id, user_id: dto.user_id, text: dto.text, file: dto.file, created_at: dto.date
     }
-    // console.log(body)
+    console.log('body~~~~~~~~', body.file)
 
     let files: Partial<Files>[] = []
     // console.log(files)
 
     if (body.file && body.file.length) {
+      console.log('body обнаружен')
       for (let i of body.file) {
         const local_name = await download_file(i.file_url)
         files.push({ 'file': local_name, "file_type": i.file_type })
       }
+      console.log('files~~~~~~~~~~', files)
     }
     const admin_id = body.admin_id
     const user_id = body.user_id
@@ -105,8 +107,10 @@ export class Nest2Service {
     let finish_obj: any = { text: text, admin_id: admin_id, user_id: user_id, created_at: created_at }
 
     if (files.length > 0) {
+      console.log('~~~~~~~~~~', files.length)
       finish_obj.files = files
     }
+    console.log('finish obj~~~~~~~~~~', finish_obj) 
 
     const create = await this.chatsRepo.create(finish_obj)
     //console.log("create сработал")
@@ -162,7 +166,7 @@ export class Nest2Service {
   }
 
   async all_users() {
-    const all_users = this.userRepo.find({ where: { role: Role.USER }, select: ['id', 'user_name', 'phone'] })
+    const all_users = this.userRepo.find({ where: { role: Role.USER }, select: ['id', 'user_name', 'phone', 'year', 'user_lastName'] })
     return all_users
   }
 

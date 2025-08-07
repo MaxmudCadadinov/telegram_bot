@@ -7,6 +7,8 @@ import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Nest1Module } from './nest1/nest1.module';
 import { Nest2Module } from './nest2/nest2.module';
+import { WebsocketService } from './websocket/websocket.service';
+import { WebsocketModule } from './websocket/websocket.module';
 
 
 @Module({
@@ -24,8 +26,9 @@ import { Nest2Module } from './nest2/nest2.module';
   }),
     Nest1Module,
     Nest2Module,
+    WebsocketModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, WebsocketService],
 })
 export class AppModule { }

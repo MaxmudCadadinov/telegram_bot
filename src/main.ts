@@ -13,6 +13,8 @@ async function bootstrap() {
     prefix: '/uploads',
   });
 
+  app.enableCors()
+
   app.useGlobalPipes(new ValidationPipe({
     transform: true,              // Преобразует типы (например, строку в число)
     whitelist: true,              // Удаляет лишние поля, которых нет в DTO
